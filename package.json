@@ -1,0 +1,14 @@
+{
+  "name": "pumpfun-sniper-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@triton-one/yellowstone-grpc": "^4.0.2",
+    "bs58": "^5.0.0",
+    "dotenv": "^16.4.7"
+  }
+}
