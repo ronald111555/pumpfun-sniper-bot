@@ -8,8 +8,10 @@ const DISCRIMINATORS = {
 };
 
 function toBase58(bytes) {
+  if (typeof bytes === "string") return bytes;
   if (!bytes?.length) return null;
-  return bs58.encode(bytes);
+  if (bytes instanceof Uint8Array) return bs58.encode(bytes);
+  return bs58.encode(new Uint8Array(bytes));
 }
 
 function readU32LE(data, offset) {

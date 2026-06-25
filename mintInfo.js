@@ -122,6 +122,7 @@ export async function getMintInfo(connection, mint, type, options = {}) {
     const account = await connection.getAccountInfo(
       new PublicKey(bondingCurveAddress),
     );
+
     if (account?.data) {
       const curve = decodeBondingCurve(account.data);
       if (curve) {

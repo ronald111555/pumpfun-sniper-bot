@@ -23,7 +23,10 @@ async function main() {
     const txInfo = data.transaction.transaction;
     if (!txInfo?.transaction?.message) return;
 
-    const signature = bs58.encode(txInfo.signature);
+    const signature =
+      typeof txInfo.signature === "string"
+        ? txInfo.signature
+        : bs58.encode(txInfo.signature);
     const message = txInfo.transaction.message;
 
     const accountKeys = (message.accountKeys ?? []).map(
@@ -81,6 +84,8 @@ async function main() {
           detected: new Date().toUTCString(),
         });
       } else {
+        // TODO: handle other event types
+        // console.log(event);
       }
     }
   });
