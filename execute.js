@@ -1,13 +1,12 @@
 import { Keypair, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 
-const inputMint = process.env.INPUT_MINT;
 const baseUrl = process.env.JUPITER_BASE_URL;
 const apiKey = process.env.JUPITER_API_KEY;
 
 const wallet = Keypair.fromSecretKey(bs58.decode(process.env.PRIVATE_KEY));
 
-async function getOrder(outputMint, amount, slippageBps) {
+async function getOrder(inputMint, outputMint, amount, slippageBps) {
   const url =
     `${baseUrl}/order?` +
     new URLSearchParams({
@@ -51,10 +50,10 @@ async function executeSwap(signedTx, requestId) {
   return await res.json();
 }
 
-export async function execute(outputMint, amount, slippageBps) {
+export async function execute(inputMint, outputMint, amount, slippageBps) {
   try {
     console.log("Getting order...");
-    const order = await getOrder(outputMint, amount, slippageBps);
+    const order = await getOrder(inputMint, outputMint, amount, slippageBps);
     if (!order.transaction) {
       throw new Error("No transaction returned");
     }
@@ -73,6 +72,8 @@ export async function execute(outputMint, amount, slippageBps) {
     } else {
       console.log("Swap failed:", result.error);
     }
+
+    return result;
   } catch (err) {
     console.error(err);
   }

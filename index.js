@@ -8,6 +8,8 @@ import { createConnection, getMintInfo } from "./mintInfo.js";
 import { filterMintInfo } from "./filter.js";
 import { execute } from "./execute.js";
 
+const solMint = process.env.SOL_MINT;
+
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const GRPC_X_TOKEN = process.env.GRPC_X_TOKEN;
 const PUMPFUN_PROGRAM_ID = process.env.PUMPFUN_PROGRAM_ID;
@@ -91,7 +93,14 @@ async function main() {
           //   detected: new Date().toUTCString(),
           // });
           console.log("passed");
-          await execute(event.mint, 10, 100);
+
+          // Buy
+          const buyResult = await execute(solMint, event.mint, 10, 5000);
+          const amount = buyResult.outputAmountResult;
+          console.log("amount:", amount);
+
+          // Sell
+          const sellResult = await execute(event.mint, solMint, amount, 5000);
         } else {
           console.log("not passed");
         }
