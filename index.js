@@ -83,15 +83,22 @@ async function main() {
       events.map(async (event) => {
         if (event.type === "create" || event.type === "create_v2") {
           console.log({ ...event, detected: new Date().toUTCString() });
-          // const mintInfo = await getMintInfo(
-          //   connection,
-          //   event.mint,
-          //   event.type,
-          //   {
-          //     bondingCurve: event.bondingCurve,
-          //     uri: event.uri,
-          //   },
-          // );
+          const mintInfo = await getMintInfo(
+            connection,
+            event.mint,
+            event.type,
+            {
+              bondingCurve: event.bondingCurve,
+              uri: event.uri,
+            },
+          );
+
+          console.log({
+            ...event,
+            mintInfo,
+            updated: new Date().toISOString(),
+          });
+
           // const bondingCurve = new PublicKey(event.bondingCurve);
           // const subId = connection.onAccountChange(
           //   bondingCurve,

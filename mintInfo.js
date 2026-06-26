@@ -4,6 +4,7 @@ import {
   getMint,
   TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
+  unpackMint,
 } from "@solana/spl-token";
 
 const BONDING_CURVE_DISC = Uint8Array.from([
@@ -100,14 +101,15 @@ export async function getMintInfo(connection, mint, type, options = {}) {
   } = options;
 
   const mintPubkey = new PublicKey(mint);
+
+  const [mintAcc, curveAccount] = await connection.getMultipleAccountsInfo(
+    [mintPubkey, new PublicKey(bondingCurveAddress)],
+    "processed",
+  );
+
   const programId =
     type === "create_v2" ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
-  const mintAccount = await getMint(
-    connection,
-    mintPubkey,
-    "processed",
-    programId,
-  );
+  const mintAccount = unpackMint(mintPubkey, mintAcc, programId);
 
   const info = {
     mint,
@@ -118,36 +120,37 @@ export async function getMintInfo(connection, mint, type, options = {}) {
     isInitialized: mintAccount.isInitialized,
   };
 
-  if (bondingCurveAddress) {
-    const account = await connection.getAccountInfo(
-      new PublicKey(bondingCurveAddress),
-    );
+  // if (bondingCurveAddress) {
+  //   const account = await connection.getAccountInfo(
+  //     new PublicKey(bondingCurveAddress),
+  //   );
 
-    if (account?.data) {
-      const curve = decodeBondingCurve(account.data);
-      if (curve) {
-        const decimals = decimalsOverride ?? mintAccount.decimals;
-        const priceSol = calcPriceSol(
-          BigInt(curve.virtualQuoteReserves),
-          BigInt(curve.virtualTokenReserves),
-          decimals,
-        );
-        const marketCapSol =
-          priceSol * (Number(curve.tokenTotalSupply) / 10 ** decimals);
+  if (curveAccount?.data) {
+    const curve = decodeBondingCurve(curveAccount.data);
+    if (curve) {
+      const decimals = decimalsOverride ?? mintAccount.decimals;
+      const priceSol = calcPriceSol(
+        BigInt(curve.virtualQuoteReserves),
+        BigInt(curve.virtualTokenReserves),
+        decimals,
+      );
+      const marketCapSol =
+        priceSol * (Number(curve.tokenTotalSupply) / 10 ** decimals);
 
-        info.bondingCurve = {
-          address: bondingCurveAddress,
-          ...curve,
-          priceSol,
-          marketCapSol,
-        };
-      }
+      info.bondingCurve = {
+        address: bondingCurveAddress,
+        ...curve,
+        priceSol,
+        marketCapSol,
+      };
     }
   }
 
-  if (uri) {
-    info.metadata = await fetchMetadata(uri);
-  }
+  // }
+
+  // if (uri) {
+  //   info.metadata = await fetchMetadata(uri);
+  // }
 
   return info;
 }
