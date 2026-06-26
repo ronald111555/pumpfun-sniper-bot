@@ -7,6 +7,7 @@ export function filterMintInfo(mintInfo) {
   if (mintInfo.freezeAuthority !== null)
     return { pass: false, reason: "Freeze authority exists" };
   if (bc?.complete === true) return { pass: false, reason: "Already migrated" };
+  if (!bc) return { pass: false, reason: "Missing bonding curve data" };
 
   // Liquidity filters
   const realSOL = Number(bc.realQuoteReserves) / 10 ** 9;

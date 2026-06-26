@@ -1,13 +1,18 @@
 import "dotenv/config";
+import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
 import { parseTxData } from "./parser.js";
 import { createConnection, getMintInfo } from "./mintInfo.js";
 
+import { filterMintInfo } from "./filter.js";
+import { execute } from "./execute.js";
+
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const GRPC_X_TOKEN = process.env.GRPC_X_TOKEN;
 const PUMPFUN_PROGRAM_ID = process.env.PUMPFUN_PROGRAM_ID;
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 const client = new Client(GRPC_ENDPOINT, GRPC_X_TOKEN);
 const connection = createConnection(RPC_ENDPOINT);
@@ -78,11 +83,18 @@ async function main() {
           bondingCurve: event.bondingCurve,
           uri: event.uri,
         });
-        console.log({
-          ...event,
-          mintInfo,
-          detected: new Date().toUTCString(),
-        });
+
+        if (filterMintInfo(mintInfo).pass) {
+          // console.log({
+          //   ...event,
+          //   mintInfo,
+          //   detected: new Date().toUTCString(),
+          // });
+          console.log("passed");
+          await execute(event.mint, 10, 100);
+        } else {
+          console.log("not passed");
+        }
       } else {
         // TODO: handle other event types
         // console.log(event);
