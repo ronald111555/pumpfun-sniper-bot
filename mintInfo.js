@@ -105,7 +105,7 @@ export async function getMintInfo(connection, mint, type, options = {}) {
   const mintAccount = await getMint(
     connection,
     mintPubkey,
-    "confirmed",
+    "processed",
     programId,
   );
 
@@ -152,6 +152,9 @@ export async function getMintInfo(connection, mint, type, options = {}) {
   return info;
 }
 
-export function createConnection(rpcEndpoint) {
-  return new Connection(rpcEndpoint, "confirmed");
+export function createConnection(rpcEndpoint, wsEndpoint) {
+  return new Connection(rpcEndpoint, {
+    wsEndpoint: wsEndpoint,
+    commitment: "processed",
+  });
 }

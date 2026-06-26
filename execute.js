@@ -6,7 +6,14 @@ const apiKey = process.env.JUPITER_API_KEY;
 
 const wallet = Keypair.fromSecretKey(bs58.decode(process.env.PRIVATE_KEY));
 
-async function getOrder(inputMint, outputMint, amount, slippageBps) {
+async function getOrder(
+  inputMint,
+  outputMint,
+  amount,
+  slippageBps,
+  priorityFeeLamports,
+  jitoTipLamports,
+) {
   const url =
     `${baseUrl}/order?` +
     new URLSearchParams({
@@ -14,6 +21,8 @@ async function getOrder(inputMint, outputMint, amount, slippageBps) {
       outputMint,
       amount: amount.toString(),
       slippageBps: slippageBps.toString(),
+      priorityFeeLamports: priorityFeeLamports.toString(),
+      jitoTipLamports: jitoTipLamports.toString(),
       taker: wallet.publicKey.toString(),
     });
 
@@ -50,10 +59,24 @@ async function executeSwap(signedTx, requestId) {
   return await res.json();
 }
 
-export async function execute(inputMint, outputMint, amount, slippageBps) {
+export async function execute(
+  inputMint,
+  outputMint,
+  amount,
+  slippageBps,
+  priorityFeeLamports,
+  jitoTipLamports,
+) {
   try {
     console.log("Getting order...");
-    const order = await getOrder(inputMint, outputMint, amount, slippageBps);
+    const order = await getOrder(
+      inputMint,
+      outputMint,
+      amount,
+      slippageBps,
+      priorityFeeLamports,
+      jitoTipLamports,
+    );
     if (!order.transaction) {
       throw new Error("No transaction returned");
     }

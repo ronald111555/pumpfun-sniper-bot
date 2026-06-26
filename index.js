@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
 import { parseTxData } from "./parser.js";
@@ -14,15 +14,15 @@ const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const GRPC_X_TOKEN = process.env.GRPC_X_TOKEN;
 const PUMPFUN_PROGRAM_ID = process.env.PUMPFUN_PROGRAM_ID;
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT;
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const RPC_WS_ENDPOINT = process.env.RPC_WS_ENDPOINT;
 
 const client = new Client(GRPC_ENDPOINT, GRPC_X_TOKEN);
-const connection = createConnection(RPC_ENDPOINT);
+const connection = createConnection(RPC_ENDPOINT, RPC_WS_ENDPOINT);
 
 async function main() {
   const stream = await client.subscribe();
 
-  stream.on("data", async (data) => {
+  stream.on("data", (data) => {
     if (!data.transaction) return;
 
     const slot = data.transaction.slot;
@@ -79,36 +79,55 @@ async function main() {
 
     const events = parseTxData(txData, PUMPFUN_PROGRAM_ID);
 
-    for (const event of events) {
-      if (event.type === "create" || event.type === "create_v2") {
-        const mintInfo = await getMintInfo(connection, event.mint, event.type, {
-          bondingCurve: event.bondingCurve,
-          uri: event.uri,
-        });
-
-        if (filterMintInfo(mintInfo).pass) {
-          // console.log({
-          //   ...event,
-          //   mintInfo,
-          //   detected: new Date().toUTCString(),
-          // });
-          console.log("passed");
-
-          // Buy
-          const buyResult = await execute(solMint, event.mint, 10, 5000);
-          const amount = buyResult.outputAmountResult;
-          console.log("amount:", amount);
-
-          // Sell
-          const sellResult = await execute(event.mint, solMint, amount, 5000);
+    Promise.all(
+      events.map(async (event) => {
+        if (event.type === "create" || event.type === "create_v2") {
+          console.log({ ...event, detected: new Date().toUTCString() });
+          // const mintInfo = await getMintInfo(
+          //   connection,
+          //   event.mint,
+          //   event.type,
+          //   {
+          //     bondingCurve: event.bondingCurve,
+          //     uri: event.uri,
+          //   },
+          // );
+          // const bondingCurve = new PublicKey(event.bondingCurve);
+          // const subId = connection.onAccountChange(
+          //   bondingCurve,
+          //   (accountInfo, context) => {},
+          //   { commitment: "processed" },
+          // );
+          // if (filterMintInfo(mintInfo).pass) {
+          //   console.log("passed");
+          //   // Buy
+          //   const buyResult = await execute(
+          //     solMint,
+          //     event.mint,
+          //     10,
+          //     5000,
+          //     10,
+          //     10,
+          //   );
+          //   const amount = buyResult?.outputAmountResult;
+          //   console.log("buyTokenAmount:", amount);
+          //   // Sell
+          //   const sellResult = await execute(
+          //     event.mint,
+          //     solMint,
+          //     amount,
+          //     5000,
+          //     10,
+          //     10,
+          //   );
+          // } else {
+          //   console.log("not passed");
+          // }
         } else {
-          console.log("not passed");
+          // TODO: handle other event types
         }
-      } else {
-        // TODO: handle other event types
-        // console.log(event);
-      }
-    }
+      }),
+    );
   });
 
   stream.on("error", (error) => {});
@@ -130,7 +149,7 @@ async function main() {
     blocksMeta: {},
     entry: {},
     accountsDataSlice: [],
-    commitment: CommitmentLevel.CONFIRMED,
+    commitment: CommitmentLevel.PROCESSED,
   });
 
   console.log("Listening to Pump.fun...");
