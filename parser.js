@@ -71,13 +71,60 @@ function parseCreateEvent(data) {
   offset = skipAnchorString(data, offset);
   offset = skipAnchorString(data, offset);
   offset = skipAnchorString(data, offset);
-  if (offset + 32 * 4 + 8 > data.length) return null;
+  if (offset + 32 * 4 + 8 + 32 + 32 > data.length) return null;
 
   const mint = toBase58(data.subarray(offset, offset + 32));
   offset += 32 * 4;
   const timestamp = readI64LE(data, offset);
+  offset += 8;
 
-  return { mint, timestamp };
+  const virtualTokenReserves = readU64LE(data, offset).toString();
+  offset += 8;
+  const virtualSolReserves = readU64LE(data, offset).toString();
+  offset += 8;
+  const realTokenReserves = readU64LE(data, offset).toString();
+  offset += 8;
+  const tokenTotalSupply = readU64LE(data, offset).toString();
+  offset += 8;
+
+  const tokenProgram = toBase58(data.subarray(offset, offset + 32));
+  offset += 32;
+
+  let isMayhemMode;
+  let isCashbackEnabled;
+  let quoteMint;
+  let virtualQuoteReserves = virtualSolReserves;
+
+  // Full tail: is_mayhem_mode, is_cashback_enabled, quote_mint, virtual_quote_reserves
+  if (offset + 42 <= data.length) {
+    isMayhemMode = data[offset] === 1;
+    isCashbackEnabled = data[offset + 1] === 1;
+    quoteMint = toBase58(data.subarray(offset + 2, offset + 34));
+    virtualQuoteReserves = readU64LE(data, offset + 34).toString();
+  } else if (offset + 2 <= data.length) {
+    isMayhemMode = data[offset] === 1;
+    isCashbackEnabled = data[offset + 1] === 1;
+  } else if (offset + 1 <= data.length) {
+    isMayhemMode = data[offset] === 1;
+  }
+
+  if (virtualQuoteReserves === "0") {
+    virtualQuoteReserves = virtualSolReserves;
+  }
+
+  return {
+    mint,
+    timestamp,
+    virtualTokenReserves,
+    virtualSolReserves,
+    realTokenReserves,
+    tokenTotalSupply,
+    tokenProgram,
+    isMayhemMode,
+    isCashbackEnabled,
+    quoteMint,
+    virtualQuoteReserves,
+  };
 }
 
 function parseTradeEvent(data) {
@@ -115,21 +162,38 @@ function parseLogEvents(logs) {
   return { createEvents, tradeEvents };
 }
 
-function findEventTimestamp(event, logEvents) {
+function enrichFromLogEvents(event, logEvents) {
   if (event.type === "create" || event.type === "create_v2") {
-    return logEvents.createEvents.find((e) => e.mint === event.mint)?.timestamp;
+    const createEvent = logEvents.createEvents.find((e) => e.mint === event.mint);
+    if (!createEvent) return {};
+    return {
+      timestamp: createEvent.timestamp,
+      virtualTokenReserves: createEvent.virtualTokenReserves,
+      virtualSolReserves: createEvent.virtualSolReserves,
+      realTokenReserves: createEvent.realTokenReserves,
+      tokenTotalSupply: createEvent.tokenTotalSupply,
+      tokenProgram: createEvent.tokenProgram,
+      isMayhemMode: createEvent.isMayhemMode,
+      isCashbackEnabled: createEvent.isCashbackEnabled,
+      quoteMint: createEvent.quoteMint,
+      virtualQuoteReserves: createEvent.virtualQuoteReserves,
+    };
   }
   if (event.type === "buy") {
-    return logEvents.tradeEvents.find(
-      (e) => e.mint === event.mint && e.isBuy,
-    )?.timestamp;
+    return {
+      timestamp: logEvents.tradeEvents.find(
+        (e) => e.mint === event.mint && e.isBuy,
+      )?.timestamp,
+    };
   }
   if (event.type === "sell") {
-    return logEvents.tradeEvents.find(
-      (e) => e.mint === event.mint && !e.isBuy,
-    )?.timestamp;
+    return {
+      timestamp: logEvents.tradeEvents.find(
+        (e) => e.mint === event.mint && !e.isBuy,
+      )?.timestamp,
+    };
   }
-  return undefined;
+  return {};
 }
 
 function decodeAnchorString(data, offset) {
@@ -262,7 +326,7 @@ export function parseTxData(txData, programId) {
         ...event,
         signature: txData.signature,
         slot: txData.slot,
-        timestamp: findEventTimestamp(event, logEvents),
+        ...enrichFromLogEvents(event, logEvents),
       });
     }
   }
