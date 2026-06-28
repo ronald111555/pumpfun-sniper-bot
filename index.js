@@ -5,7 +5,7 @@ import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
 import { parseTxData } from "./parser.js";
 import { createConnection, getMintInfo } from "./mintInfo.js";
 
-import { filterMintInfo } from "./filter.js";
+import { filterParsedTxData } from "./filter.js";
 import { execute } from "./execute.js";
 
 const solMint = process.env.SOL_MINT;
@@ -13,8 +13,8 @@ const solMint = process.env.SOL_MINT;
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const GRPC_X_TOKEN = process.env.GRPC_X_TOKEN;
 const PUMPFUN_PROGRAM_ID = process.env.PUMPFUN_PROGRAM_ID;
-const RPC_ENDPOINT = process.env.RPC_ENDPOINT;
-const RPC_WS_ENDPOINT = process.env.RPC_WS_ENDPOINT;
+const RPC_ENDPOINT = process.env.RPC_ENDPOINT_2;
+const RPC_WS_ENDPOINT = process.env.RPC_WS_ENDPOINT_2;
 
 const client = new Client(GRPC_ENDPOINT, GRPC_X_TOKEN);
 const connection = createConnection(RPC_ENDPOINT, RPC_WS_ENDPOINT);
@@ -22,7 +22,7 @@ const connection = createConnection(RPC_ENDPOINT, RPC_WS_ENDPOINT);
 async function main() {
   const stream = await client.subscribe();
 
-  stream.on("data", (data) => {
+  stream.on("data", async (data) => {
     if (!data.transaction) return;
 
     const slot = data.transaction.slot;
@@ -79,66 +79,72 @@ async function main() {
 
     const events = parseTxData(txData, PUMPFUN_PROGRAM_ID);
 
-    Promise.all(
-      events.map(async (event) => {
-        if (event.type === "create" || event.type === "create_v2") {
-          // console.log(event);
-          // const mintInfo = await getMintInfo(
-          //   connection,
-          //   event.mint,
-          //   event.type,
-          //   {
-          //     bondingCurve: event.bondingCurve,
-          //     uri: event.uri,
-          //   },
-          // );
-          // console.log({
-          //   ...event,
-          //   mintInfo,
-          //   updated: new Date().toISOString(),
-          // });
-          // const bondingCurve = new PublicKey(event.bondingCurve);
-          // const subId = connection.onAccountChange(
-          //   bondingCurve,
-          //   (accountInfo, context) => {},
-          //   { commitment: "processed" },
-          // );
-          // if (filterMintInfo(mintInfo).pass) {
-          // console.log({
-          //   ...event,
-          //   mintInfo,
-          //   updated: new Date().toISOString(),
-          // });
-          // console.log("passed");
-          // // Buy
-          // const buyResult = await execute(
-          //   solMint,
-          //   event.mint,
-          //   10,
-          //   10000,
-          //   10,
-          //   10,
-          // );
-          // console.log("buyResult:\n", buyResult);
-          // const amount = buyResult?.outputAmountResult;
-          // console.log("buyTokenAmount:", amount);
-          // // Sell
-          // const sellResult = await execute(
-          //   event.mint,
-          //   solMint,
-          //   amount,
-          //   5000,
-          //   10,
-          //   10,
-          // );
-          // } else {
-          // console.log("not passed");
-          // }
-        } else {
-          console.log(event);
-        }
-      }),
-    );
+    const filterRes = await filterParsedTxData(events, connection);
+
+    // if (filterRes.pass)
+    //   console.log(filterRes.createEvent, new Date().toUTCString());
+
+    // Promise.all(
+    //   events.map(async (event) => {
+    //     if (event.type === "create" || event.type === "create_v2") {
+    //       console.log(event);
+
+    // const mintInfo = await getMintInfo(
+    //   connection,
+    //   event.mint,
+    //   event.type,
+    //   {
+    //     bondingCurve: event.bondingCurve,
+    //     uri: event.uri,
+    //   },
+    // );
+    // console.log({
+    //   ...event,
+    //   mintInfo,
+    //   updated: new Date().toISOString(),
+    // });
+    // const bondingCurve = new PublicKey(event.bondingCurve);
+    // const subId = connection.onAccountChange(
+    //   bondingCurve,
+    //   (accountInfo, context) => {},
+    //   { commitment: "processed" },
+    // );
+    // if (filterMintInfo(mintInfo).pass) {
+    // console.log({
+    //   ...event,
+    //   mintInfo,
+    //   updated: new Date().toISOString(),
+    // });
+    // console.log("passed");
+    // // Buy
+    // const buyResult = await execute(
+    //   solMint,
+    //   event.mint,
+    //   10,
+    //   10000,
+    //   10,
+    //   10,
+    // );
+    // console.log("buyResult:\n", buyResult);
+    // const amount = buyResult?.outputAmountResult;
+    // console.log("buyTokenAmount:", amount);
+    // // Sell
+    // const sellResult = await execute(
+    //   event.mint,
+    //   solMint,
+    //   amount,
+    //   5000,
+    //   10,
+    //   10,
+    // );
+    // } else {
+    // console.log("not passed");
+    // }
+    //     } else {
+    //       console.log(event);
+    //     }
+    //   }),
+    // );
   });
 
   stream.on("error", (error) => {});
