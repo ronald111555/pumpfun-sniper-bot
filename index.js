@@ -82,22 +82,23 @@ async function main() {
     Promise.all(
       events.map(async (event) => {
         if (event.type === "create" || event.type === "create_v2") {
-          console.log({ ...event, detected: new Date().toUTCString() });
-          const mintInfo = await getMintInfo(
-            connection,
-            event.mint,
-            event.type,
-            {
-              bondingCurve: event.bondingCurve,
-              uri: event.uri,
-            },
-          );
+          console.log(event);
 
-          console.log({
-            ...event,
-            mintInfo,
-            updated: new Date().toISOString(),
-          });
+          // const mintInfo = await getMintInfo(
+          //   connection,
+          //   event.mint,
+          //   event.type,
+          //   {
+          //     bondingCurve: event.bondingCurve,
+          //     uri: event.uri,
+          //   },
+          // );
+
+          // console.log({
+          //   ...event,
+          //   mintInfo,
+          //   updated: new Date().toISOString(),
+          // });
 
           // const bondingCurve = new PublicKey(event.bondingCurve);
           // const subId = connection.onAccountChange(
@@ -106,29 +107,36 @@ async function main() {
           //   { commitment: "processed" },
           // );
           // if (filterMintInfo(mintInfo).pass) {
-          //   console.log("passed");
-          //   // Buy
-          //   const buyResult = await execute(
-          //     solMint,
-          //     event.mint,
-          //     10,
-          //     5000,
-          //     10,
-          //     10,
-          //   );
-          //   const amount = buyResult?.outputAmountResult;
-          //   console.log("buyTokenAmount:", amount);
-          //   // Sell
-          //   const sellResult = await execute(
-          //     event.mint,
-          //     solMint,
-          //     amount,
-          //     5000,
-          //     10,
-          //     10,
-          //   );
+          // console.log({
+          //   ...event,
+          //   mintInfo,
+          //   updated: new Date().toISOString(),
+          // });
+
+          // console.log("passed");
+          // // Buy
+          // const buyResult = await execute(
+          //   solMint,
+          //   event.mint,
+          //   10,
+          //   10000,
+          //   10,
+          //   10,
+          // );
+          // console.log("buyResult:\n", buyResult);
+          // const amount = buyResult?.outputAmountResult;
+          // console.log("buyTokenAmount:", amount);
+          // // Sell
+          // const sellResult = await execute(
+          //   event.mint,
+          //   solMint,
+          //   amount,
+          //   5000,
+          //   10,
+          //   10,
+          // );
           // } else {
-          //   console.log("not passed");
+          // console.log("not passed");
           // }
         } else {
           // TODO: handle other event types

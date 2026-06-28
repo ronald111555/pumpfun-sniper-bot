@@ -100,59 +100,58 @@ export async function getMintInfo(connection, mint, type, options = {}) {
     decimals: decimalsOverride,
   } = options;
 
-  const mintPubkey = new PublicKey(mint);
+  try {
+    const mintPubkey = new PublicKey(mint);
 
-  const [mintAcc, curveAccount] = await connection.getMultipleAccountsInfo(
-    [mintPubkey, new PublicKey(bondingCurveAddress)],
-    "processed",
-  );
+    const [mintAcc, curveAccount] = await connection.getMultipleAccountsInfo(
+      [mintPubkey, new PublicKey(bondingCurveAddress)],
+      "processed",
+    );
 
-  const programId =
-    type === "create_v2" ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
-  const mintAccount = unpackMint(mintPubkey, mintAcc, programId);
+    const programId =
+      type === "create_v2" ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
+    const mintAccount = unpackMint(mintPubkey, mintAcc, programId);
 
-  const info = {
-    mint,
-    decimals: mintAccount.decimals,
-    supply: mintAccount.supply.toString(),
-    mintAuthority: mintAccount.mintAuthority?.toBase58() ?? null,
-    freezeAuthority: mintAccount.freezeAuthority?.toBase58() ?? null,
-    isInitialized: mintAccount.isInitialized,
-  };
+    const info = {
+      mint,
+      decimals: mintAccount.decimals,
+      supply: mintAccount.supply.toString(),
+      mintAuthority: mintAccount.mintAuthority?.toBase58() ?? null,
+      freezeAuthority: mintAccount.freezeAuthority?.toBase58() ?? null,
+      isInitialized: mintAccount.isInitialized,
+    };
 
-  // if (bondingCurveAddress) {
-  //   const account = await connection.getAccountInfo(
-  //     new PublicKey(bondingCurveAddress),
-  //   );
+    if (curveAccount?.data) {
+      const curve = decodeBondingCurve(curveAccount.data);
+      if (curve) {
+        const decimals = decimalsOverride ?? mintAccount.decimals;
+        const priceSol = calcPriceSol(
+          BigInt(curve.virtualQuoteReserves),
+          BigInt(curve.virtualTokenReserves),
+          decimals,
+        );
+        const marketCapSol =
+          priceSol * (Number(curve.tokenTotalSupply) / 10 ** decimals);
 
-  if (curveAccount?.data) {
-    const curve = decodeBondingCurve(curveAccount.data);
-    if (curve) {
-      const decimals = decimalsOverride ?? mintAccount.decimals;
-      const priceSol = calcPriceSol(
-        BigInt(curve.virtualQuoteReserves),
-        BigInt(curve.virtualTokenReserves),
-        decimals,
-      );
-      const marketCapSol =
-        priceSol * (Number(curve.tokenTotalSupply) / 10 ** decimals);
-
-      info.bondingCurve = {
-        address: bondingCurveAddress,
-        ...curve,
-        priceSol,
-        marketCapSol,
-      };
+        info.bondingCurve = {
+          address: bondingCurveAddress,
+          ...curve,
+          priceSol,
+          marketCapSol,
+        };
+      }
     }
+
+    // }
+
+    if (uri) {
+      info.metadata = await fetchMetadata(uri);
+    }
+
+    return info;
+  } catch (err) {
+    console.error(err);
   }
-
-  // }
-
-  // if (uri) {
-  //   info.metadata = await fetchMetadata(uri);
-  // }
-
-  return info;
 }
 
 export function createConnection(rpcEndpoint, wsEndpoint) {

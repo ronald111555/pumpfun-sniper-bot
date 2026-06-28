@@ -7,6 +7,11 @@ const DISCRIMINATORS = {
   sell: Uint8Array.from([51, 230, 133, 164, 1, 127, 131, 173]),
 };
 
+const EVENT_DISCRIMINATORS = {
+  createEvent: Uint8Array.from([27, 114, 169, 77, 222, 235, 99, 118]),
+  tradeEvent: Uint8Array.from([189, 219, 127, 211, 78, 230, 97, 238]),
+};
+
 function toBase58(bytes) {
   if (typeof bytes === "string") return bytes;
   if (!bytes?.length) return null;
@@ -16,11 +21,12 @@ function toBase58(bytes) {
 
 function readU32LE(data, offset) {
   return (
-    data[offset] |
-    (data[offset + 1] << 8) |
-    (data[offset + 2] << 16) |
-    (data[offset + 3] << 24)
-  ) >>> 0;
+    (data[offset] |
+      (data[offset + 1] << 8) |
+      (data[offset + 2] << 16) |
+      (data[offset + 3] << 24)) >>>
+    0
+  );
 }
 
 function readU64LE(data, offset) {
@@ -36,6 +42,94 @@ function matchesDiscriminator(data, discriminator) {
     if (data[i] !== discriminator[i]) return false;
   }
   return true;
+}
+
+function readI64LE(data, offset) {
+  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+  return Number(view.getBigInt64(0, true));
+}
+
+function skipAnchorString(data, offset) {
+  const len = readU32LE(data, offset);
+  return offset + 4 + len;
+}
+
+function decodeProgramData(log) {
+  const prefix = "Program data: ";
+  if (!log.startsWith(prefix)) return null;
+  try {
+    return new Uint8Array(Buffer.from(log.slice(prefix.length).trim(), "base64"));
+  } catch {
+    return null;
+  }
+}
+
+function parseCreateEvent(data) {
+  if (!matchesDiscriminator(data, EVENT_DISCRIMINATORS.createEvent)) return null;
+
+  let offset = 8;
+  offset = skipAnchorString(data, offset);
+  offset = skipAnchorString(data, offset);
+  offset = skipAnchorString(data, offset);
+  if (offset + 32 * 4 + 8 > data.length) return null;
+
+  const mint = toBase58(data.subarray(offset, offset + 32));
+  offset += 32 * 4;
+  const timestamp = readI64LE(data, offset);
+
+  return { mint, timestamp };
+}
+
+function parseTradeEvent(data) {
+  if (!matchesDiscriminator(data, EVENT_DISCRIMINATORS.tradeEvent)) return null;
+  if (data.length < 97) return null;
+
+  let offset = 8;
+  const mint = toBase58(data.subarray(offset, offset + 32));
+  offset += 32 + 8 + 8;
+  const isBuy = data[offset] === 1;
+  offset += 1 + 32;
+  const timestamp = readI64LE(data, offset);
+
+  return { mint, isBuy, timestamp };
+}
+
+function parseLogEvents(logs) {
+  const createEvents = [];
+  const tradeEvents = [];
+
+  for (const log of logs ?? []) {
+    const data = decodeProgramData(log);
+    if (!data) continue;
+
+    const createEvent = parseCreateEvent(data);
+    if (createEvent) {
+      createEvents.push(createEvent);
+      continue;
+    }
+
+    const tradeEvent = parseTradeEvent(data);
+    if (tradeEvent) tradeEvents.push(tradeEvent);
+  }
+
+  return { createEvents, tradeEvents };
+}
+
+function findEventTimestamp(event, logEvents) {
+  if (event.type === "create" || event.type === "create_v2") {
+    return logEvents.createEvents.find((e) => e.mint === event.mint)?.timestamp;
+  }
+  if (event.type === "buy") {
+    return logEvents.tradeEvents.find(
+      (e) => e.mint === event.mint && e.isBuy,
+    )?.timestamp;
+  }
+  if (event.type === "sell") {
+    return logEvents.tradeEvents.find(
+      (e) => e.mint === event.mint && !e.isBuy,
+    )?.timestamp;
+  }
+  return undefined;
 }
 
 function decodeAnchorString(data, offset) {
@@ -159,6 +253,7 @@ function parseInstruction(ix, accountKeys, programId) {
 
 export function parseTxData(txData, programId) {
   const events = [];
+  const logEvents = parseLogEvents(txData.logs);
 
   for (const { ix, accountKeys } of collectInstructions(txData)) {
     const event = parseInstruction(ix, accountKeys, programId);
@@ -167,6 +262,7 @@ export function parseTxData(txData, programId) {
         ...event,
         signature: txData.signature,
         slot: txData.slot,
+        timestamp: findEventTimestamp(event, logEvents),
       });
     }
   }

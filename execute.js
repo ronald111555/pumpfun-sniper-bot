@@ -78,7 +78,8 @@ export async function execute(
       jitoTipLamports,
     );
     if (!order.transaction) {
-      throw new Error("No transaction returned");
+      console.log(order.error);
+      return;
     }
     console.log("Signing transaction...");
     const signedTx = await signTransaction(order);
