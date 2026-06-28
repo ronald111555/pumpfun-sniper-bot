@@ -82,8 +82,7 @@ async function main() {
     Promise.all(
       events.map(async (event) => {
         if (event.type === "create" || event.type === "create_v2") {
-          console.log(event);
-
+          // console.log(event);
           // const mintInfo = await getMintInfo(
           //   connection,
           //   event.mint,
@@ -93,13 +92,11 @@ async function main() {
           //     uri: event.uri,
           //   },
           // );
-
           // console.log({
           //   ...event,
           //   mintInfo,
           //   updated: new Date().toISOString(),
           // });
-
           // const bondingCurve = new PublicKey(event.bondingCurve);
           // const subId = connection.onAccountChange(
           //   bondingCurve,
@@ -112,7 +109,6 @@ async function main() {
           //   mintInfo,
           //   updated: new Date().toISOString(),
           // });
-
           // console.log("passed");
           // // Buy
           // const buyResult = await execute(
@@ -139,7 +135,7 @@ async function main() {
           // console.log("not passed");
           // }
         } else {
-          // TODO: handle other event types
+          console.log(event);
         }
       }),
     );

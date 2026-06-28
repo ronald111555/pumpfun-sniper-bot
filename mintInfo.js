@@ -142,8 +142,6 @@ export async function getMintInfo(connection, mint, type, options = {}) {
       }
     }
 
-    // }
-
     if (uri) {
       info.metadata = await fetchMetadata(uri);
     }
