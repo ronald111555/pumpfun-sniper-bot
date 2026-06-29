@@ -8,18 +8,22 @@ import { createConnection, getMintInfo } from "./mintInfo.js";
 import { filterParsedTxData } from "./filter.js";
 import { execute } from "./execute.js";
 
+import { testConnection, createWalletTrackTable } from "./db.js";
+
 const solMint = process.env.SOL_MINT;
 
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const GRPC_X_TOKEN = process.env.GRPC_X_TOKEN;
 const PUMPFUN_PROGRAM_ID = process.env.PUMPFUN_PROGRAM_ID;
-const RPC_ENDPOINT = process.env.RPC_ENDPOINT_2;
-const RPC_WS_ENDPOINT = process.env.RPC_WS_ENDPOINT_2;
+const RPC_ENDPOINT = process.env.RPC_ENDPOINT;
+const RPC_WS_ENDPOINT = process.env.RPC_WS_ENDPOINT;
 
 const client = new Client(GRPC_ENDPOINT, GRPC_X_TOKEN);
 const connection = createConnection(RPC_ENDPOINT, RPC_WS_ENDPOINT);
 
 async function main() {
+  await testConnection();
+
   const stream = await client.subscribe();
 
   stream.on("data", async (data) => {

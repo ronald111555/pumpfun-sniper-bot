@@ -5,6 +5,9 @@ import {
   TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
 
+import { targets } from "./targets.js";
+import { postWalletTrack, postToken } from "./db.js";
+
 // export function filterMintInfo(mintInfo) {
 //   const bc = mintInfo?.bondingCurve;
 
@@ -45,38 +48,60 @@ async function fetchMetadata(uri) {
 }
 
 export async function filterParsedTxData(events, connection) {
-  const createEvent = events.find(
-    (event) => event.type === "create" || event.type === "create_v2",
-  );
-  const buyEvent = events.find((event) => event.type === "buy");
+  try {
+    const createEvent = events.find(
+      (event) => event.type === "create" || event.type === "create_v2",
+    );
+    const buyEvent = events.find((event) => event.type === "buy");
 
-  if (!(createEvent && buyEvent))
-    return { pass: false, reason: "createEvent or buyEvent not found" };
+    // if (createEvent) {
+    //   postToken(createEvent);
+    // }
 
-  const tokenProgram =
-    createEvent.type === "create_v2" ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
-  const mintAccount = await getMint(
-    connection,
-    new PublicKey(createEvent.mint),
-    "processed",
-    tokenProgram,
-  );
-  if (mintAccount)
-    createEvent.mintInfo = {
-      mint: createEvent.mint,
-      decimals: mintAccount.decimals,
-      supply: mintAccount.supply.toString(),
-      mintAuthority: mintAccount.mintAuthority?.toBase58() ?? null,
-      freezeAuthority: mintAccount.freezeAuthority?.toBase58() ?? null,
-      isInitialized: mintAccount.isInitialized,
-    };
+    if (buyEvent) {
+      const isTarget = targets.find(
+        (target) => target.address === buyEvent.user,
+      );
+      if (isTarget) {
+        postWalletTrack(buyEvent.user, isTarget.name, buyEvent.mint);
+      }
+    }
 
-  createEvent.metadata = await fetchMetadata(createEvent.uri);
+    if (!(createEvent && buyEvent))
+      return { pass: false, reason: "createEvent or buyEvent not found" };
 
-  console.log("================== Tx Start ==================");
-  console.log(createEvent);
-  console.log(buyEvent);
-  console.log("================== Tx End ==================\n");
+    const tokenProgram =
+      createEvent.type === "create_v2"
+        ? TOKEN_2022_PROGRAM_ID
+        : TOKEN_PROGRAM_ID;
+    const mintAccount = await getMint(
+      connection,
+      new PublicKey(createEvent.mint),
+      "processed",
+      tokenProgram,
+    );
+    if (mintAccount)
+      createEvent.mintInfo = {
+        mint: createEvent.mint,
+        decimals: mintAccount.decimals,
+        supply: mintAccount.supply.toString(),
+        mintAuthority: mintAccount.mintAuthority?.toBase58() ?? null,
+        freezeAuthority: mintAccount.freezeAuthority?.toBase58() ?? null,
+        isInitialized: mintAccount.isInitialized,
+      };
 
-  return { pass: true, reason: "Passed all filters", createEvent };
+    createEvent.metadata = await fetchMetadata(createEvent.uri);
+
+    postToken(createEvent);
+
+    console.log("================== Tx Start ==================");
+    console.log(createEvent);
+    console.log(buyEvent);
+    console.log(new Date().toUTCString());
+    console.log("================== Tx End ==================\n");
+
+    return { pass: true, reason: "Passed all filters", createEvent };
+  } catch (err) {
+    console.error(err);
+  }
 }
