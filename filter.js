@@ -54,10 +54,6 @@ export async function filterParsedTxData(events, connection) {
     );
     const buyEvent = events.find((event) => event.type === "buy");
 
-    // if (createEvent) {
-    //   postToken(createEvent);
-    // }
-
     if (buyEvent) {
       const isTarget = targets.find(
         (target) => target.address === buyEvent.user,

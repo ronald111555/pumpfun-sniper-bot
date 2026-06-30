@@ -6,9 +6,11 @@ import { parseTxData } from "./parser.js";
 import { createConnection, getMintInfo } from "./mintInfo.js";
 
 import { filterParsedTxData } from "./filter.js";
-import { execute } from "./execute.js";
+import { execute } from "./execute-Jupiter.js";
 
 import { testConnection, createWalletTrackTable } from "./db.js";
+
+import { buy } from "./execute-Pumpfun.js";
 
 const solMint = process.env.SOL_MINT;
 
@@ -84,6 +86,15 @@ async function main() {
     const events = parseTxData(txData, PUMPFUN_PROGRAM_ID);
 
     const filterRes = await filterParsedTxData(events, connection);
+
+    if (filterRes?.pass) {
+      await buy(
+        connection,
+        filterRes.createEvent.mint,
+        filterRes.createEvent.type,
+        100,
+      );
+    }
 
     // if (filterRes.pass)
     //   console.log(filterRes.createEvent, new Date().toUTCString());
