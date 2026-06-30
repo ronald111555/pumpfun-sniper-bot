@@ -42,12 +42,37 @@ function getGlobal() {
 }
 
 const BUY_DISCRIMINATOR = Buffer.from([102, 6, 61, 18, 1, 218, 235, 234]);
+const SELL_DISCRIMINATOR = Buffer.from([51, 230, 133, 164, 1, 127, 131, 173]);
+
+async function detectTokenProgram(connection, mint) {
+  const info = await connection.getAccountInfo(mint);
+
+  if (!info) {
+    throw new Error("Mint not found");
+  }
+
+  if (info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+    return TOKEN_2022_PROGRAM_ID;
+  }
+
+  return TOKEN_PROGRAM_ID;
+}
 
 function encodeBuy(amount, maxSolCost) {
   const data = Buffer.alloc(8 + 8 + 8);
   BUY_DISCRIMINATOR.copy(data, 0);
   data.writeBigUInt64LE(BigInt(amount ?? 0), 8); // token amount (raw units)
   data.writeBigUInt64LE(BigInt(maxSolCost), 16); // lamports max SOL
+
+  return data;
+}
+
+function encodeSell(amount, minSolOut) {
+  const data = Buffer.alloc(8 + 8 + 8);
+
+  SELL_DISCRIMINATOR.copy(data, 0);
+  data.writeBigUInt64LE(BigInt(amount), 8); // token amount
+  data.writeBigUInt64LE(BigInt(minSolOut ?? 0), 16); // slippage protection
 
   return data;
 }
@@ -132,6 +157,37 @@ export async function builderPumpFunBuyIx(
   return { createAtaIx, buyIx };
 }
 
+export async function builderPumpFunSellIx(
+  connection,
+  type,
+  { seller, mint, amount, minSolOut },
+) {
+  const bondingCurve = getBondingCurve(mint);
+  const global = getGlobal();
+
+  const { ata, createIx: createAtaIx } = await getOrCreateATA(
+    connection,
+    new PublicKey(mint),
+    seller,
+    type,
+  );
+
+  const data = encodeSell(amount, minSolOut);
+
+  return new TransactionInstruction({
+    programId: PUMP_PROGRAM_ID,
+    keys: [
+      { pubkey: seller, isSigner: true, isWritable: true },
+      { pubkey: global, isSigner: false, isWritable: false },
+      { pubkey: bondingCurve, isSigner: false, isWritable: true },
+      { pubkey: ata, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey(mint), isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+}
+
 // How to execute Buy
 async function sendBuy(connection, ixs) {
   const tx = new Transaction();
@@ -175,4 +231,49 @@ export async function buy(connection, mint, type, maxSolCost) {
 
   await sendBuy(connection, [createAtaIx, buyIx]);
   console.log("Buy success!");
+}
+
+export async function sell(connection, mint, amount) {
+  const tokenProgram = await detectTokenProgram(
+    connection,
+    new PublicKey(mint),
+  );
+
+  const ata = getAssociatedTokenAddressSync(
+    new PublicKey(mint),
+    wallet.publicKey,
+    false,
+    tokenProgram,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  );
+
+  const bal = await connection.getTokenAccountBalance(ata);
+  console.log(`${mint}: ${bal.value.amount}`);
+
+  // const sellIx = builderPumpFunSellIx(connection, type, {
+  //   seller: wallet.publicKey,
+  //   mint,
+  //   amount,
+  // });
+
+  // const tx = new Transaction();
+
+  // tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 600000 }));
+
+  // tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }));
+
+  // tx.add(sellIx);
+
+  // tx.feePayer = wallet.publicKey;
+  // tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+  // tx.sign(wallet);
+
+  // const sig = await connection.sendRawTransaction(tx.serialize(), {
+  //   skipPreflight: false,
+  // });
+
+  // console.log("SELL TX:", sig);
+
+  // return sig;
 }
