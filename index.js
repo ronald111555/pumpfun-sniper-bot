@@ -28,10 +28,10 @@ async function main() {
 
   const stream = await client.subscribe();
 
-  await sell(connection, "YNPbcC93C5rbnE3rzBKd88YSJhps8DaJdAVRWWupump"); // 0.21
-  await sell(connection, "3HdaLVX7VC69Md2JbPMGfBUjFg5QNNciNVb9op2Mpump"); // 0.23
-  await sell(connection, "8VE5zSBntuvx4GpE744EE8Y3tpPPtW437CE52KVZpump"); // 0.187
-  await sell(connection, "Bpfd3m66CV33Ae9t1p9eawbtn5d45RW5jfGW5s8tmCK6"); // 0.235
+  // await sell(connection, "YNPbcC93C5rbnE3rzBKd88YSJhps8DaJdAVRWWupump"); // 0.21
+  // await sell(connection, "3HdaLVX7VC69Md2JbPMGfBUjFg5QNNciNVb9op2Mpump"); // 0.23
+  // await sell(connection, "8VE5zSBntuvx4GpE744EE8Y3tpPPtW437CE52KVZpump"); // 0.187
+  // await sell(connection, "Bpfd3m66CV33Ae9t1p9eawbtn5d45RW5jfGW5s8tmCK6"); // 0.235
 
   stream.on("data", async (data) => {
     if (!data.transaction) return;
@@ -90,7 +90,7 @@ async function main() {
 
     const events = parseTxData(txData, PUMPFUN_PROGRAM_ID);
 
-    // const filterRes = await filterParsedTxData(events, connection);
+    const filterRes = await filterParsedTxData(events, connection);
 
     // if (filterRes?.pass) {
     //   await buy(

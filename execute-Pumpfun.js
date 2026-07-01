@@ -159,18 +159,11 @@ export async function builderPumpFunBuyIx(
 
 export async function builderPumpFunSellIx(
   connection,
-  type,
+  ata,
   { seller, mint, amount, minSolOut },
 ) {
   const bondingCurve = getBondingCurve(mint);
   const global = getGlobal();
-
-  const { ata, createIx: createAtaIx } = await getOrCreateATA(
-    connection,
-    new PublicKey(mint),
-    seller,
-    type,
-  );
 
   const data = encodeSell(amount, minSolOut);
 
@@ -250,30 +243,30 @@ export async function sell(connection, mint, amount) {
   const bal = await connection.getTokenAccountBalance(ata);
   console.log(`${mint}: ${bal.value.amount}`);
 
-  // const sellIx = builderPumpFunSellIx(connection, type, {
-  //   seller: wallet.publicKey,
-  //   mint,
-  //   amount,
-  // });
+  const sellIx = builderPumpFunSellIx(connection, ata, {
+    seller: wallet.publicKey,
+    mint,
+    amount: bal.value.amount,
+  });
 
-  // const tx = new Transaction();
+  const tx = new Transaction();
 
-  // tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 600000 }));
+  tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 600000 }));
 
-  // tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }));
+  tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }));
 
   // tx.add(sellIx);
 
-  // tx.feePayer = wallet.publicKey;
-  // tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.feePayer = wallet.publicKey;
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-  // tx.sign(wallet);
+  tx.sign(wallet);
 
-  // const sig = await connection.sendRawTransaction(tx.serialize(), {
-  //   skipPreflight: false,
-  // });
+  const sig = await connection.sendRawTransaction(tx.serialize(), {
+    skipPreflight: false,
+  });
 
-  // console.log("SELL TX:", sig);
+  console.log("SELL TX:", sig);
 
-  // return sig;
+  return sig;
 }
