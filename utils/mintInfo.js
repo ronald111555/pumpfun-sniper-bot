@@ -151,10 +151,3 @@ export async function getMintInfo(connection, mint, type, options = {}) {
     console.error(err);
   }
 }
-
-export function createConnection(rpcEndpoint, wsEndpoint) {
-  return new Connection(rpcEndpoint, {
-    wsEndpoint: wsEndpoint,
-    commitment: "processed",
-  });
-}

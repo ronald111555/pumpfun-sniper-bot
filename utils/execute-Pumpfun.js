@@ -1,7 +1,9 @@
-import "dotenv/config";
-import bs58 from "bs58";
+require("dotenv").config();
+const bs58 = require("bs58");
+const BN = require("bn.js");
+const { Buffer } = require("buffer");
 
-import {
+const {
   Connection,
   PublicKey,
   TransactionInstruction,
@@ -9,19 +11,16 @@ import {
   Transaction,
   ComputeBudgetProgram,
   Keypair,
-} from "@solana/web3.js";
+} = require("@solana/web3.js");
 
-import {
+const {
   getAssociatedTokenAddressSync,
   getAccount,
   createAssociatedTokenAccountInstruction,
   TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import BN from "bn.js";
-
-import { Buffer } from "buffer";
+} = require("@solana/spl-token");
 
 const PUMP_PROGRAM_ID = new PublicKey(process.env.PUMPFUN_PROGRAM_ID);
 
@@ -111,7 +110,7 @@ async function getOrCreateATA(connection, mint, owner, type) {
 }
 
 // Main Buy instruction builder
-export async function builderPumpFunBuyIx(
+async function builderPumpFunBuyIx(
   connection,
   type,
   {
@@ -157,7 +156,7 @@ export async function builderPumpFunBuyIx(
   return { createAtaIx, buyIx };
 }
 
-export async function builderPumpFunSellIx(
+async function builderPumpFunSellIx(
   connection,
   ata,
   { seller, mint, amount, minSolOut },
@@ -215,7 +214,7 @@ async function sendBuy(connection, ixs) {
   return sig;
 }
 
-export async function buy(connection, mint, type, maxSolCost) {
+async function buy(connection, mint, type, maxSolCost) {
   const { createAtaIx, buyIx } = await builderPumpFunBuyIx(connection, type, {
     buyer: wallet.publicKey,
     mint,
@@ -226,7 +225,7 @@ export async function buy(connection, mint, type, maxSolCost) {
   console.log("Buy success!");
 }
 
-export async function sell(connection, mint, amount) {
+async function sell(connection, mint, amount) {
   const tokenProgram = await detectTokenProgram(
     connection,
     new PublicKey(mint),
@@ -255,7 +254,7 @@ export async function sell(connection, mint, amount) {
 
   tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }));
 
-  // tx.add(sellIx);
+  tx.add(sellIx);
 
   tx.feePayer = wallet.publicKey;
   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
@@ -270,3 +269,5 @@ export async function sell(connection, mint, amount) {
 
   return sig;
 }
+
+module.exports = { buy, sell };

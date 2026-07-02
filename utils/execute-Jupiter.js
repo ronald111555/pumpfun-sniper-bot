@@ -1,5 +1,5 @@
-import { Keypair, VersionedTransaction } from "@solana/web3.js";
-import bs58 from "bs58";
+const { Keypair, VersionedTransaction } = require("@solana/web3.js");
+const bs58 = require("bs58");
 
 const baseUrl = process.env.JUPITER_BASE_URL;
 const apiKey = process.env.JUPITER_API_KEY;
@@ -59,7 +59,7 @@ async function executeSwap(signedTx, requestId) {
   return await res.json();
 }
 
-export async function execute(
+async function execute(
   inputMint,
   outputMint,
   amount,
@@ -102,3 +102,5 @@ export async function execute(
     console.error(err);
   }
 }
+
+module.exports = { execute };

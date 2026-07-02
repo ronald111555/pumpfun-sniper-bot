@@ -1,26 +1,25 @@
-import "dotenv/config";
-import pg from "pg";
+require("dotenv").config();
+const pg = require("pg");
 
 const { Pool } = pg;
 
-export const pool = new Pool({
+const pool = new Pool({
   connectionString: process.env.DB_URL,
 });
 
-export async function query(text, params) {
+async function query(text, params) {
   return pool.query(text, params);
 }
 
-export async function testConnection() {
+async function testDatabaseConnection() {
   const res = await pool.query("SELECT NOW()");
   console.log("DB connnected:", res.rows[0].now);
 }
 
 // ===== wallet track =====
-export async function createWalletTrackTable() {
+async function createWalletTrackTable() {
   const sql = `
     CREATE TABLE IF NOT EXISTS wallet_track (
-      id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       wallet VARCHAR(255) NOT NULL,
       rename VARCHAR(255),
       mint VARCHAR(255) NOT NULL
@@ -30,7 +29,7 @@ export async function createWalletTrackTable() {
   await pool.query(sql);
 }
 
-export async function postWalletTrack(wallet, rename, mint) {
+async function postWalletTrack(wallet, rename, mint) {
   await createWalletTrackTable();
 
   const sql = `
@@ -42,10 +41,9 @@ export async function postWalletTrack(wallet, rename, mint) {
 }
 
 // ===== tokens =====
-export async function createTokensTable() {
+async function createTokensTable() {
   const sql = `
     CREATE TABLE IF NOT EXISTS tokens (
-      id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       mint VARCHAR(255) NOT NULL,
       type VARCHAR(255) NOT NULL,
       bondingCurve VARCHAR(255) NOT NULL,
@@ -78,7 +76,7 @@ export async function createTokensTable() {
   await pool.query(sql);
 }
 
-export async function postToken(data) {
+async function postToken(data) {
   await createTokensTable();
 
   const sql = `
@@ -115,3 +113,12 @@ export async function postToken(data) {
     JSON.stringify(data.metadata),
   ]);
 }
+
+module.exports = {
+  query,
+  testDatabaseConnection,
+  createWalletTrackTable,
+  postWalletTrack,
+  createTokensTable,
+  postToken,
+};
